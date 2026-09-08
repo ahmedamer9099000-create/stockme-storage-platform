@@ -1,0 +1,1 @@
+ALTER TABLE `login_attempts` ADD `type` text DEFAULT 'login' NOT NULL;

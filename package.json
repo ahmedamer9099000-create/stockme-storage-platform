@@ -1,0 +1,51 @@
+{
+  "name": "storage-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply storage-platform-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply storage-platform-db --remote",
+    "db:build-seed": "tsx scripts/seed.ts",
+    "db:seed:local": "npm run db:build-seed && wrangler d1 execute storage-platform-db --local --file=./seed-data/seed.sql",
+    "db:seed:remote": "npm run db:build-seed && wrangler d1 execute storage-platform-db --remote --file=./seed-data/seed.sql",
+    "test:smoke": "tsx --test tests/smoke.test.ts",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@fontsource/noto-kufi-arabic": "^5.3.0",
+    "bcryptjs": "^3.0.3",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "drizzle-orm": "^0.45.2",
+    "jose": "^5.9.6",
+    "next": "16.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.0.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.1",
+    "playwright-core": "^1.62.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.12",
+    "typescript": "^5",
+    "wrangler": "^4.28.0"
+  }
+}

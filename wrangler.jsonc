@@ -1,0 +1,19 @@
+{
+  "name": "storage-platform",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".open-next/worker.js",
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "storage-platform-db",
+      "database_id": "0236a143-6bc6-4064-bc6c-d6e75ccfaa28",
+      "migrations_dir": "drizzle",
+      "remote": true
+    }
+  ]
+}

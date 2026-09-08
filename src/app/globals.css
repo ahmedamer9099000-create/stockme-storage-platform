@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@import "@fontsource/noto-kufi-arabic/400.css";
+@import "@fontsource/noto-kufi-arabic/600.css";
+@import "@fontsource/noto-kufi-arabic/700.css";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+:root {
+  /* ===== Design tokens — "warehouse label" system ===== */
+  --ink: #101828;
+  --canvas: #f5f6f8;
+  --surface: #ffffff;
+  --brand: #234c8c;
+  --brand-dark: #16335f;
+  --signal: #e8672c;
+  --signal-dark: #c8551f;
+  --line: #dfe3e8;
+  --line-soft: #eceff2;
+  --success: #1f9d55;
+  --success-bg: #e8f7ee;
+  --warning: #b5750f;
+  --warning-bg: #fdf3df;
+  --danger: #d92d20;
+  --danger-bg: #fdeceb;
+  --muted: #667085;
+
+  --font-display: "Noto Kufi Arabic", "IBM Plex Sans Arabic", sans-serif;
+  --font-body: "IBM Plex Sans Arabic", "IBM Plex Mono", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-signal: var(--signal);
+  --color-signal-dark: var(--signal-dark);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-muted: var(--muted);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== Signature element: the "bin label" location path =====
+   Warehouse -> Zone -> Rack -> Shelf -> Bin, styled like a shipping label
+   readout. Used for real product locations across the app, and echoed
+   decoratively in the marketing hero. */
+.bin-path {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--brand-dark);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.bin-path .seg {
+  padding: 0.0625rem 0.375rem;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.bin-path .sep {
+  color: var(--muted);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
