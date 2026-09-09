@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, Button } from "@/components/ui";
+import { Card, Button, StatusPill, EmptyState } from "@/components/ui";
 
 const reportTypes = [
   { key: "inventory", label: "تقرير المخزون" },
@@ -13,6 +13,48 @@ const reportTypes = [
   { key: "warehouse-activity", label: "نشاط المخزن" },
 ];
 
+const fieldLabels: Record<string, string> = {
+  sku: "SKU",
+  name: "الاسم",
+  quantity: "الكمية",
+  minStock: "الحد الأدنى",
+  customerId: "رقم العميل",
+  customerName: "العميل",
+  companyName: "اسم المتجر",
+  warehouseId: "المخزن",
+  warehouseName: "المخزن",
+  status: "الحالة",
+  total: "الإجمالي",
+  amount: "المبلغ",
+  date: "التاريخ",
+  createdAt: "التاريخ",
+  month: "الشهر",
+  allocatedM2: "المساحة المخصصة",
+  usedM2: "المساحة المستخدمة",
+  reason: "السبب",
+  orderNumber: "رقم الطلب",
+  invoiceNumber: "رقم الفاتورة",
+};
+
+function labelFor(key: string) {
+  return fieldLabels[key] ?? key;
+}
+
+function isStatusField(key: string) {
+  return key === "status" || key.toLowerCase().endsWith("status");
+}
+
+function isCodeField(key: string) {
+  return key === "sku" || key.toLowerCase().endsWith("id") || key.toLowerCase().includes("number");
+}
+
+function formatValue(key: string, value: unknown) {
+  if (value === null || value === undefined || value === "") return <span className="text-muted">—</span>;
+  if (isStatusField(key) && typeof value === "string") return <StatusPill status={value} />;
+  if (typeof value === "number") return value.toLocaleString("ar-EG");
+  return String(value);
+}
+
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
@@ -21,6 +63,56 @@ function toCsv(rows: Record<string, unknown>[]): string {
     lines.push(headers.map((h) => JSON.stringify(row[h] ?? "")).join(","));
   }
   return lines.join("\n");
+}
+
+function ReportTable({ rows }: { rows: Record<string, unknown>[] }) {
+  if (rows.length === 0) {
+    return <EmptyState title="لا توجد بيانات لهذا التقرير" description="جرّب نوع تقرير آخر أو راجع لاحقًا بعد تسجيل حركة جديدة" />;
+  }
+  const headers = Object.keys(rows[0]);
+  return (
+    <div className="overflow-x-auto -mx-4">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-line bg-line-soft/50 text-right">
+            {headers.map((h) => (
+              <th key={h} className="px-4 py-3 font-medium text-muted whitespace-nowrap">
+                {labelFor(h)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line [&>tr:nth-child(even)]:bg-line-soft/30 [&>tr]:transition-colors [&>tr:hover]:bg-line-soft/60">
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {headers.map((h) => (
+                <td key={h} className={`px-4 py-3 whitespace-nowrap ${isCodeField(h) ? "font-mono text-xs" : ""}`}>
+                  {formatValue(h, row[h])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReportSummary({ obj }: { obj: Record<string, unknown> }) {
+  const entries = Object.entries(obj);
+  if (entries.length === 0) {
+    return <EmptyState title="لا توجد بيانات لهذا التقرير" />;
+  }
+  return (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {entries.map(([key, value]) => (
+        <div key={key} className="border border-line rounded-xl p-4">
+          <p className="text-xs text-muted mb-1.5">{labelFor(key)}</p>
+          <p className="font-display font-bold text-lg">{formatValue(key, value)}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function ReportsViewer() {
@@ -52,6 +144,9 @@ export function ReportsViewer() {
     URL.revokeObjectURL(url);
   }
 
+  const isArray = Array.isArray(data);
+  const recordCount = isArray ? (data as unknown[]).length : data ? 1 : 0;
+
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-4">
@@ -70,14 +165,20 @@ export function ReportsViewer() {
 
       <Card className="bg-surface p-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm text-muted">{loading ? "جارٍ التحميل..." : `${Array.isArray(data) ? data.length : 1} سجل`}</p>
+          <p className="text-sm text-muted">{loading ? "جارٍ التحميل..." : `${recordCount} سجل`}</p>
           <Button size="sm" variant="ghost" onClick={exportCsv} disabled={!data}>
             تصدير CSV
           </Button>
         </div>
-        <pre className="text-xs bg-line-soft rounded-lg p-4 overflow-auto max-h-[480px]" dir="ltr">
-          {JSON.stringify(data, null, 2)}
-        </pre>
+        {loading ? (
+          <p className="text-sm text-muted text-center py-16">جارٍ التحميل...</p>
+        ) : isArray ? (
+          <ReportTable rows={data as Record<string, unknown>[]} />
+        ) : data ? (
+          <ReportSummary obj={data as Record<string, unknown>} />
+        ) : (
+          <EmptyState title="لا توجد بيانات لهذا التقرير" />
+        )}
       </Card>
     </div>
   );
