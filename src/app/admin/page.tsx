@@ -1,5 +1,4 @@
 import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
 import { PageHeader, StatCard, DataTable } from "@/components/dashboard/shell";
 import { StatusPill } from "@/components/ui";
 import Link from "next/link";
@@ -38,6 +37,7 @@ export default async function AdminOverviewPage() {
   const monthlyRevenue = invoicesRows.filter((i) => i.createdAt >= monthStart).reduce((s, i) => s + i.total, 0);
   const pendingPayments = invoicesRows.filter((i) => i.status !== "paid").reduce((s, i) => s + i.total, 0);
   const lowStock = products.filter((p) => p.quantity <= p.minStock);
+  const returnsCount = (await db.select().from(schema.returns)).length;
 
   const recentOrders = [...orders].sort((a, b) => b.createdAt - a.createdAt || b.id - a.id).slice(0, 6);
   const customerById = new Map(customers.map((c) => [c.id, c]));
@@ -49,12 +49,21 @@ export default async function AdminOverviewPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard label="إجمالي العملاء" value={customers.length} sub={`${activeCustomers} نشط`} />
         <StatCard label="نسبة الإشغال" value={`${occupancyPercent}%`} sub={`${occupied} من ${totalCapacity} م²`} />
-        <StatCard label="إيراد هذا الشهر" value={`${monthlyRevenue.toLocaleString()} EGP`} />
-        <StatCard label="مدفوعات مستحقة" value={`${pendingPayments.toLocaleString()} EGP`} />
+        <StatCard label="إيراد هذا الشهر" value={`${monthlyRevenue.toLocaleString()} EGP`} tone="positive" />
+        <StatCard
+          label="مدفوعات مستحقة"
+          value={`${pendingPayments.toLocaleString()} EGP`}
+          tone={pendingPayments > 0 ? "warning" : "neutral"}
+        />
         <StatCard label="طلبات اليوم" value={ordersToday} />
         <StatCard label="طلبات هذا الشهر" value={ordersThisMonth} />
-        <StatCard label="المرتجعات" value={(await db.select().from(schema.returns)).length} />
-        <StatCard label="مخزون منخفض" value={lowStock.length} sub={lowStock.length > 0 ? "يحتاج مراجعة" : "كل شيء طبيعي"} />
+        <StatCard label="المرتجعات" value={returnsCount} tone={returnsCount > 0 ? "warning" : "neutral"} />
+        <StatCard
+          label="مخزون منخفض"
+          value={lowStock.length}
+          sub={lowStock.length > 0 ? "يحتاج مراجعة" : "كل شيء طبيعي"}
+          tone={lowStock.length > 0 ? "danger" : "neutral"}
+        />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
