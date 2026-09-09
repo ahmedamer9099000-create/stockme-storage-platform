@@ -43,10 +43,13 @@ export function DashboardShell({
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
+                  "relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors",
                   active ? "bg-white/10 text-white font-medium" : "text-white/60 hover:text-white hover:bg-white/5"
                 )}
               >
+                {active && (
+                  <span className="absolute right-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-signal" aria-hidden />
+                )}
                 {item.label}
               </Link>
             );
@@ -84,11 +87,43 @@ export function PageHeader({ title, description, action }: { title: string; desc
   );
 }
 
-export function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+/**
+ * StatCard now supports an optional `tone` so the overview grid stops reading
+ * as eight identical boxes. Tone drives a thin top accent + value color only —
+ * the card shape stays consistent, so this reads as emphasis, not decoration.
+ *   - "positive": good news (revenue, active customers)
+ * - "warning": needs attention but not urgent (low stock, pending payments)
+ * - "danger": needs attention now (overdue, damaged)
+ * - "neutral": default, no signal either way (default if omitted)
+ */
+export function StatCard({
+  label,
+  value,
+  sub,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  tone?: "neutral" | "positive" | "warning" | "danger";
+}) {
+  const accent = {
+    neutral: "border-t-line",
+    positive: "border-t-success",
+    warning: "border-t-warning",
+    danger: "border-t-danger",
+  }[tone];
+  const valueColor = {
+    neutral: "text-ink",
+    positive: "text-success",
+    warning: "text-warning",
+    danger: "text-danger",
+  }[tone];
+
   return (
-    <div className="bg-surface border border-line rounded-xl p-4">
+    <div className={clsx("bg-surface border border-line border-t-2 rounded-xl p-4", accent)}>
       <p className="text-xs text-muted mb-1.5">{label}</p>
-      <p className="font-display font-bold text-2xl text-ink">{value}</p>
+      <p className={clsx("font-display font-bold text-2xl", valueColor)}>{value}</p>
       {sub && <p className="text-xs text-muted mt-1">{sub}</p>}
     </div>
   );
@@ -107,7 +142,9 @@ export function DataTable({ headers, children }: { headers: string[]; children: 
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-line">{children}</tbody>
+        <tbody className="divide-y divide-line [&>tr:nth-child(even)]:bg-line-soft/30 [&>tr]:transition-colors [&>tr:hover]:bg-line-soft/60">
+          {children}
+        </tbody>
       </table>
     </div>
   );
