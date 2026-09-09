@@ -1,6 +1,7 @@
 import { db, schema } from "@/db";
 import { desc } from "drizzle-orm";
 import { PageHeader, DataTable } from "@/components/dashboard/shell";
+import { EmptyState } from "@/components/ui";
 
 const actionLabels: Record<string, string> = {
   customer_updated: "تعديل بيانات عميل",
@@ -21,22 +22,28 @@ export default async function AdminAuditLogPage() {
   return (
     <div>
       <PageHeader title="سجل التدقيق" description="آخر 200 عملية حساسة تمت في النظام" />
-      <DataTable headers={["التاريخ", "المستخدم", "العملية", "النوع", "التفاصيل"]}>
-        {logs.map((log) => (
-          <tr key={log.id}>
-            <td className="px-4 py-3 text-muted text-xs">{new Date(log.createdAt * 1000).toLocaleString("ar-EG")}</td>
-            <td className="px-4 py-3 text-sm">{log.userId ? userById.get(log.userId)?.name ?? `#${log.userId}` : "—"}</td>
-            <td className="px-4 py-3 text-sm">{actionLabels[log.action] ?? log.action}</td>
-            <td className="px-4 py-3 text-muted text-xs">{log.entityType} {log.entityId ? `#${log.entityId}` : ""}</td>
-            <td className="px-4 py-3 text-xs text-muted max-w-xs truncate" title={log.details ?? ""}>{log.details ?? "—"}</td>
-          </tr>
-        ))}
-        {logs.length === 0 && (
-          <tr>
-            <td colSpan={5} className="px-4 py-8 text-center text-muted text-sm">لا توجد عمليات مسجَّلة بعد</td>
-          </tr>
-        )}
-      </DataTable>
+      {logs.length === 0 ? (
+        <EmptyState
+          title="لا توجد عمليات مسجَّلة بعد"
+          description="هتظهر هنا أول ما تتم أي عملية حساسة في النظام، زي تعديل بيانات عميل أو اعتماد منتج"
+        />
+      ) : (
+        <DataTable headers={["التاريخ", "المستخدم", "العملية", "النوع", "التفاصيل"]}>
+          {logs.map((log) => (
+            <tr key={log.id}>
+              <td className="px-4 py-3 text-muted text-xs">{new Date(log.createdAt * 1000).toLocaleString("ar-EG")}</td>
+              <td className="px-4 py-3 text-sm">{log.userId ? userById.get(log.userId)?.name ?? `#${log.userId}` : "—"}</td>
+              <td className="px-4 py-3 text-sm">{actionLabels[log.action] ?? log.action}</td>
+              <td className="px-4 py-3 text-muted text-xs">
+                {log.entityType} {log.entityId ? `#${log.entityId}` : ""}
+              </td>
+              <td className="px-4 py-3 text-xs text-muted max-w-xs truncate" title={log.details ?? ""}>
+                {log.details ?? "—"}
+              </td>
+            </tr>
+          ))}
+        </DataTable>
+      )}
     </div>
   );
 }
