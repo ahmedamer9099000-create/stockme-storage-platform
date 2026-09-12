@@ -19,7 +19,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   await db.batch([
     db.update(schema.shipments).set({ status: "delivered", deliveredAt: now }).where(eq(schema.shipments.id, shipment.id)),
     db.update(schema.orders).set({ status: "delivered" }).where(eq(schema.orders.id, orderId)),
-  ] as any);
+  ]);
 
   const [customer] = await db.select().from(schema.customers).where(eq(schema.customers.id, order.customerId));
   if (customer?.userId) {
