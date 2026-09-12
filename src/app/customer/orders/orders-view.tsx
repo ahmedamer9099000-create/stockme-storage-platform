@@ -88,7 +88,8 @@ export function OrdersView({ initialOrders, products }: { initialOrders: Order[]
                   </td>
                   <td className="px-4 py-3 text-muted text-xs">{new Date(o.createdAt * 1000).toLocaleDateString("ar-EG")}</td>
                   <td className="px-4 py-3">
-                    {o.paymentStatus === "paid" ? (
+                    {/* ✅ تعديل: الزرار مايظهرش لو الطلب مدفوع بالفعل أو طريقة الدفع كاش (COD) */}
+                    {o.paymentStatus === "paid" || o.paymentMethod === "cod" ? (
                       <span className="text-xs text-muted">—</span>
                     ) : (
                       <PaymentProofUpload orderId={o.id} hasProof={!!o.paymentProofUrl} onUploaded={() => router.refresh()} />
