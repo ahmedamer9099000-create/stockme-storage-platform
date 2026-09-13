@@ -5,16 +5,19 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Card } from "@/components/ui";
 import { StorageBooking } from "./storage-booking";
+import { RenewalRequest } from "./renewal-request";
 
 export default async function CustomerStoragePage() {
   const user = await getFreshUser();
   if (!user?.customerId) redirect("/login");
 
-  const [allocations, warehouses, allActiveAllocations] = await Promise.all([
+  const [allocations, warehouses, allActiveAllocations, plan] = await Promise.all([
     db.select().from(schema.storageAllocations).where(eq(schema.storageAllocations.customerId, user.customerId)),
     db.select().from(schema.warehouses),
     db.select().from(schema.storageAllocations).where(eq(schema.storageAllocations.status, "active")),
+    db.select().from(schema.pricingPlans).where(eq(schema.pricingPlans.isDefault, true)).limit(1),
   ]);
+  const activePlan = plan[0];
   const active = allocations.find((a) => a.status === "active" && a.approvalStatus === "approved");
   const pending = allocations.find((a) => a.status === "active" && a.approvalStatus === "pending");
 
@@ -38,7 +41,7 @@ export default async function CustomerStoragePage() {
       ) : !active ? (
         <>
           <Card className="bg-surface p-8 text-center text-muted">لا توجد مساحة مخصصة لحسابك حاليًا.</Card>
-          <StorageBooking warehouses={warehousesWithAvailability} />
+          <StorageBooking warehouses={warehousesWithAvailability} plan={activePlan} />
         </>
       ) : (
         <Card className="bg-surface p-6 max-w-lg">
@@ -61,6 +64,18 @@ export default async function CustomerStoragePage() {
               <p className="font-semibold">{Math.max(active.allocatedM2 - active.usedM2, 0)} م²</p>
             </div>
           </div>
+          {active.endDate && (
+            <div className="mt-4 pt-4 border-t border-line">
+              <p className="text-xs text-muted mb-1">تاريخ انتهاء الاشتراك</p>
+              <p className="font-semibold">{new Date(active.endDate * 1000).toLocaleDateString("ar-EG")}</p>
+              <RenewalRequest
+                allocationId={active.id}
+                hasPendingRenewal={active.pendingRenewalMonths != null}
+                plan={activePlan}
+                allocatedM2={active.allocatedM2}
+              />
+            </div>
+          )}
         </Card>
       )}
     </div>

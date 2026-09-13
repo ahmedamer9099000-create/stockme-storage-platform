@@ -88,6 +88,8 @@ export const storageAllocations = sqliteTable("storage_allocations", {
   monthlyFee: real("monthly_fee").notNull(),
   startDate: integer("start_date").notNull().default(now()),
   endDate: integer("end_date"),
+  durationMonths: integer("duration_months").notNull().default(1),
+  pendingRenewalMonths: integer("pending_renewal_months"),
   status: text("status", { enum: ["active", "ended"] }).notNull().default("active"),
   approvalStatus: text("approval_status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
   rejectionReason: text("rejection_reason"),
@@ -301,6 +303,9 @@ export const pricingPlans = sqliteTable("pricing_plans", {
   returnFee: real("return_fee").default(0),
   shippingHandlingFee: real("shipping_handling_fee").default(0),
   isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  discountPct3m: real("discount_pct_3m").notNull().default(5),
+  discountPct6m: real("discount_pct_6m").notNull().default(10),
+  discountPct12m: real("discount_pct_12m").notNull().default(15),
 });
 
 // ============ NOTIFICATIONS / AUDIT / LEADS / SETTINGS ============

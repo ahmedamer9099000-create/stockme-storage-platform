@@ -6,7 +6,16 @@ import { z } from "zod";
 const CreateSchema = z.object({
   warehouseId: z.number().int().positive(),
   allocatedM2: z.number().positive().max(10000),
+  durationMonths: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12)]).default(1),
 });
+
+function discountForMonths(plan: { discountPct3m: number; discountPct6m: number; discountPct12m: number } | undefined, months: number) {
+  if (!plan) return 0;
+  if (months === 3) return plan.discountPct3m;
+  if (months === 6) return plan.discountPct6m;
+  if (months === 12) return plan.discountPct12m;
+  return 0;
+}
 
 export async function GET() {
   const user = await requireUser();
@@ -45,7 +54,12 @@ export async function POST(req: Request) {
   }
 
   const [plan] = await db.select().from(schema.pricingPlans).where(eq(schema.pricingPlans.isDefault, true)).limit(1);
-  const monthlyFee = Math.max(parsed.data.allocatedM2 * (plan?.pricePerM2 ?? 0), plan?.minMonthlyFee ?? 0);
+  const baseMonthlyFee = Math.max(parsed.data.allocatedM2 * (plan?.pricePerM2 ?? 0), plan?.minMonthlyFee ?? 0);
+  const discountPct = discountForMonths(plan, parsed.data.durationMonths);
+  const monthlyFee = baseMonthlyFee * (1 - discountPct / 100);
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const endDate = nowSeconds + parsed.data.durationMonths * 30 * 24 * 60 * 60;
 
   // New bookings require admin approval before they take effect — they're
   // recorded immediately (so capacity accounting reflects the pending
@@ -55,6 +69,8 @@ export async function POST(req: Request) {
     warehouseId: parsed.data.warehouseId,
     allocatedM2: parsed.data.allocatedM2,
     monthlyFee,
+    durationMonths: parsed.data.durationMonths,
+    endDate,
     status: "active",
     approvalStatus: "pending",
   }).returning();
@@ -65,7 +81,7 @@ export async function POST(req: Request) {
       userId: customer.userId,
       type: "storage_requested",
       title: "طلب حجز مساحة قيد المراجعة",
-      message: `تم استلام طلبك لحجز ${allocation.allocatedM2} م² في ${warehouse.name}، وهو الآن بانتظار موافقة الإدارة.`,
+      message: `تم استلام طلبك لحجز ${allocation.allocatedM2} م² في ${warehouse.name} لمدة ${parsed.data.durationMonths} شهر، وهو الآن بانتظار موافقة الإدارة.`,
     });
   }
 

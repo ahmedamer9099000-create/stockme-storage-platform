@@ -50,17 +50,30 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
       <div className="grid lg:grid-cols-3 gap-4 mb-8">
         <div className="bg-surface border border-line rounded-xl p-4">
           <p className="text-xs text-muted mb-1">المساحة</p>
-          {activeAllocations.map((a) => (
-            <div key={a.id}>
-              <div className="flex items-center gap-2">
-                <p className="font-display font-bold text-lg">
-                  {a.usedM2} / {a.allocatedM2} م²
-                </p>
-                <span className={`pill text-xs ${approvalLabels[a.approvalStatus].className}`}>{approvalLabels[a.approvalStatus].label}</span>
+          {activeAllocations.map((a) => {
+            const hasPendingRenewal = a.pendingRenewalMonths != null;
+            const daysLeft = a.endDate ? Math.ceil((a.endDate - Math.floor(Date.now() / 1000)) / 86400) : null;
+            return (
+              <div key={a.id} className="mb-3 last:mb-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-display font-bold text-lg">
+                    {a.usedM2} / {a.allocatedM2} م²
+                  </p>
+                  <span className={`pill text-xs ${approvalLabels[a.approvalStatus].className}`}>{approvalLabels[a.approvalStatus].label}</span>
+                  {hasPendingRenewal && (
+                    <span className="pill text-xs bg-warning-bg text-warning">طلب تجديد ({a.pendingRenewalMonths} شهر)</span>
+                  )}
+                </div>
+                {a.endDate && (
+                  <p className={`text-xs mt-1 ${daysLeft !== null && daysLeft <= 7 ? "text-danger font-medium" : "text-muted"}`}>
+                    ينتهي في: {new Date(a.endDate * 1000).toLocaleDateString("ar-EG")}
+                    {daysLeft !== null && daysLeft <= 7 && (daysLeft >= 0 ? ` (باقي ${daysLeft} يوم)` : " (انتهت المدة)")}
+                  </p>
+                )}
+                {(a.approvalStatus === "pending" || hasPendingRenewal) && <ApproveStorageForm allocationId={a.id} />}
               </div>
-              {a.approvalStatus === "pending" && <ApproveStorageForm allocationId={a.id} />}
-            </div>
-          ))}
+            );
+          })}
           {activeAllocations.length === 0 && <p className="text-sm text-muted">لا توجد مساحة مخصصة</p>}
         </div>
         <div className="bg-surface border border-line rounded-xl p-4">
