@@ -2,7 +2,7 @@
   "name": "storage-platform",
   "compatibility_date": "2026-01-01",
   "compatibility_flags": ["nodejs_compat"],
-  "main": ".open-next/worker.js",
+  "main": "worker-entry.ts",
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -15,5 +15,8 @@
       "migrations_dir": "drizzle",
       "remote": true
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 1 * * *"]
+  }
 }
