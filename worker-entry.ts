@@ -2,6 +2,7 @@ import worker from "./.open-next/worker.js";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "./src/db/schema";
 import { runStorageExpiryCheck } from "./src/lib/storage-expiry-check";
+import { cleanupOldLoginAttempts } from "./src/lib/login-attempts-cleanup";
 
 // Re-export everything else OpenNext's worker exposes (queue consumers,
 // durable object classes for tag caching, etc.) so nothing else breaks.
@@ -11,7 +12,7 @@ export default {
   ...worker,
 
   // Cloudflare invokes this directly on the schedule defined in
-  // wrangler.jsonc's `triggers.crons` — it's a separate event type from
+  // wrangler.jsonc's `triggers.crons` â€” it's a separate event type from
   // `fetch`, so it does NOT go through OpenNext's request pipeline and
   // getCloudflareContext() would have nothing to read here. We build the
   // drizzle instance straight from the `env` Cloudflare hands us instead.
@@ -24,6 +25,15 @@ export default {
         })
         .catch((err) => {
           console.error("[storage-expiry-check] failed", err);
+        })
+    );
+    ctx.waitUntil(
+      cleanupOldLoginAttempts(db)
+        .then((result) => {
+          console.log("[login-attempts-cleanup] done", result);
+        })
+        .catch((err) => {
+          console.error("[login-attempts-cleanup] failed", err);
         })
     );
   },
