@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { requireUser, ok, fail, isResponse } from "@/lib/api-helpers";
 import { deleteCustomerCascade } from "@/lib/customer-cleanup";
 import { logAudit } from "@/lib/audit";
+import { z } from "zod";
 
 // GET /api/customers/[id] — full 360 view: inventory, orders, billing, storage
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,15 +22,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return ok({ customer, products, orders, invoices, storage });
 }
 
+const CustomerPatchSchema = z.object({
+  companyName: z.string().min(2).optional(),
+  businessType: z.string().optional(),
+  phone: z.string().optional(),
+  whatsapp: z.string().optional(),
+  address: z.string().optional(),
+  status: z.enum(["active", "suspended"]).optional(),
+});
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser(["ADMIN", "SUPER_ADMIN"]);
   if (isResponse(user)) return user;
   const { id } = await params;
   const customerId = Number(id);
   const body = await req.json().catch(() => ({}));
-  const allowed = ["companyName", "businessType", "phone", "whatsapp", "address", "status"];
-  const patch: Record<string, unknown> = {};
-  for (const k of allowed) if (k in body) patch[k] = body[k];
+  const parsed = CustomerPatchSchema.safeParse(body);
+  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "بيانات غير صحيحة");
+  const patch = parsed.data;
   const [updated] = await db.update(schema.customers).set(patch).where(eq(schema.customers.id, customerId)).returning();
   if (!updated) return fail("العميل غير موجود", 404);
 
