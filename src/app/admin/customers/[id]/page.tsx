@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/ui";
 import { SuspendToggle } from "./suspend-toggle";
 import { CustomerDeleteButton } from "./customer-delete-button";
 import { ApproveStorageForm } from "./approve-storage-form";
+import { ConfirmClearanceAdminButton } from "./confirm-clearance-admin-button";
 
 export default async function AdminCustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,6 +27,7 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
   ]);
 
   const activeAllocations = allocations.filter((a) => a.status === "active");
+  const clearanceAwaitingAdmin = allocations.filter((a) => a.status === "ended" && a.clearanceStatus === "staff_confirmed");
   const approvalLabels: Record<string, { label: string; className: string }> = {
     pending: { label: "بانتظار الموافقة", className: "bg-warning-bg text-warning" },
     approved: { label: "معتمدة", className: "bg-success-bg text-success" },
@@ -85,6 +87,20 @@ export default async function AdminCustomerDetailPage({ params }: { params: Prom
           <p className="font-display font-bold text-lg">{orders.length}</p>
         </div>
       </div>
+
+      {clearanceAwaitingAdmin.length > 0 && (
+        <div className="bg-warning-bg border border-warning/30 rounded-xl p-4 mb-8">
+          <p className="text-sm font-semibold text-warning mb-3">مساحات أكّد الموظف إخلاءها — بانتظار تأكيدك النهائي</p>
+          <div className="space-y-3">
+            {clearanceAwaitingAdmin.map((a) => (
+              <div key={a.id} className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm">{a.allocatedM2} م² — انتهى الحجز وأكّد الموظف إخلاءه فعليًا</p>
+                <ConfirmClearanceAdminButton allocationId={a.id} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="font-display font-semibold mb-3">المخزون</p>
       <DataTable headers={["SKU", "المنتج", "الكمية", "الحد الأدنى"]}>

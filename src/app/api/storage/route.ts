@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, ne, or } from "drizzle-orm";
 import { requireUser, ok, fail, isResponse } from "@/lib/api-helpers";
 import { z } from "zod";
 
@@ -46,15 +46,16 @@ export async function POST(req: Request) {
 
   // A booking's m² still counts toward "occupied" if either:
   //  - it's still active, or
-  //  - it auto-ended but staff haven't confirmed the space was physically
-  //    cleared yet (clearanceConfirmed = false) — see storage-expiry-check.ts
-  //    and confirm-clearance/route.ts. Without this, the system would offer
-  //    a customer's still-occupied floor space to a new booking the moment
-  //    the old allocation's endDate + grace period passed.
+  //  - it auto-ended but the two-step staff → admin clearance confirmation
+  //    hasn't completed yet (clearanceStatus != "admin_confirmed") — see
+  //    storage-expiry-check.ts, confirm-clearance/route.ts and
+  //    confirm-clearance-admin/route.ts. Without this, the system would
+  //    offer a customer's still-occupied floor space to a new booking the
+  //    moment the old allocation's endDate + grace period passed.
   const allAllocations = await db.select().from(schema.storageAllocations).where(
     and(
       eq(schema.storageAllocations.warehouseId, parsed.data.warehouseId),
-      or(eq(schema.storageAllocations.status, "active"), eq(schema.storageAllocations.clearanceConfirmed, false))
+      or(eq(schema.storageAllocations.status, "active"), ne(schema.storageAllocations.clearanceStatus, "admin_confirmed"))
     )
   );
   const occupied = allAllocations.reduce((sum, a) => sum + a.allocatedM2, 0);

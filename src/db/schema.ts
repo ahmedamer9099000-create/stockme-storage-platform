@@ -91,7 +91,7 @@ export const storageAllocations = sqliteTable("storage_allocations", {
   durationMonths: integer("duration_months").notNull().default(1),
   pendingRenewalMonths: integer("pending_renewal_months"),
   status: text("status", { enum: ["active", "ended"] }).notNull().default("active"),
-  clearanceConfirmed: integer("clearance_confirmed", { mode: "boolean" }).notNull().default(true),
+  clearanceStatus: text("clearance_status", { enum: ["pending", "staff_confirmed", "admin_confirmed"] }).notNull().default("admin_confirmed"),
   approvalStatus: text("approval_status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
   rejectionReason: text("rejection_reason"),
 });

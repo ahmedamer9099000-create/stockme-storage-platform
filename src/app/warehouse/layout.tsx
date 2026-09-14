@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
   { href: "/warehouse/handoffs", label: "تسليم كراتين" },
   { href: "/warehouse/payments", label: "المدفوعات" },
   { href: "/warehouse/returns", label: "المرتجعات" },
+  { href: "/warehouse/storage-clearance", label: "إخلاء المساحات" },
 ];
 
 export default async function WarehouseLayout({ children }: { children: React.ReactNode }) {

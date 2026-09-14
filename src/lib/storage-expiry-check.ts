@@ -13,13 +13,16 @@ const GRACE_PERIOD_DAYS = 7;
 // 2. Auto-end allocations whose endDate passed more than GRACE_PERIOD_DAYS
 //    ago with no renewal ever having landed.
 //
-// NOTE: auto-ending flips `status` to "ended" AND `clearanceConfirmed` to
-// false. The clearanceConfirmed flag is what actually keeps this space out
-// of "available capacity" calculations for new bookings until staff
-// explicitly confirm (via POST /api/storage/[id]/confirm-clearance) that
-// the customer's products have been physically removed — flipping `status`
-// alone was not enough, since nothing here touches the customer's `products`
-// rows or the physical space itself.
+// NOTE: auto-ending flips `status` to "ended" AND `clearanceStatus` to
+// "pending", starting a two-step human confirmation flow:
+//   pending -> staff_confirmed (warehouse employee confirms the space is
+//   physically empty, via POST /api/storage/[id]/confirm-clearance) ->
+//   admin_confirmed (admin signs off, via POST
+//   /api/storage/[id]/confirm-clearance-admin). Only once clearanceStatus
+//   is back to "admin_confirmed" does the space count as available again
+//   in POST /api/storage's capacity calculation — flipping `status` alone
+//   was not enough, since nothing here touches the customer's `products`
+//   rows or the physical space itself.
 //
 // `db` is passed in rather than imported from "@/db" because the scheduled
 // handler that calls this runs outside the per-request context that
@@ -46,7 +49,7 @@ export async function runStorageExpiryCheck(db: DrizzleD1Database<typeof schema>
     if (allocation.endDate <= graceCutoff) {
       await db
         .update(schema.storageAllocations)
-        .set({ status: "ended", clearanceConfirmed: false })
+        .set({ status: "ended", clearanceStatus: "pending" })
         .where(eq(schema.storageAllocations.id, allocation.id));
       allocationsEnded++;
 
