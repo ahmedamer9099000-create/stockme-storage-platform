@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { requireUser, ok, fail, isResponse } from "@/lib/api-helpers";
 import { z } from "zod";
 
@@ -44,8 +44,18 @@ export async function POST(req: Request) {
   );
   if (existing.length) return fail("لديك بالفعل حجز مساحة نشط. يمكنك تعديل الحجز الحالي من خلال الإدارة.", 409);
 
+  // A booking's m² still counts toward "occupied" if either:
+  //  - it's still active, or
+  //  - it auto-ended but staff haven't confirmed the space was physically
+  //    cleared yet (clearanceConfirmed = false) — see storage-expiry-check.ts
+  //    and confirm-clearance/route.ts. Without this, the system would offer
+  //    a customer's still-occupied floor space to a new booking the moment
+  //    the old allocation's endDate + grace period passed.
   const allAllocations = await db.select().from(schema.storageAllocations).where(
-    and(eq(schema.storageAllocations.warehouseId, parsed.data.warehouseId), eq(schema.storageAllocations.status, "active"))
+    and(
+      eq(schema.storageAllocations.warehouseId, parsed.data.warehouseId),
+      or(eq(schema.storageAllocations.status, "active"), eq(schema.storageAllocations.clearanceConfirmed, false))
+    )
   );
   const occupied = allAllocations.reduce((sum, a) => sum + a.allocatedM2, 0);
   const available = Math.max(warehouse.totalCapacityM2 - occupied, 0);

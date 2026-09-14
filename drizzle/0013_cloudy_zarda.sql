@@ -1,0 +1,1 @@
+ALTER TABLE `storage_allocations` ADD `clearance_confirmed` integer DEFAULT true NOT NULL;

@@ -13,12 +13,13 @@ const GRACE_PERIOD_DAYS = 7;
 // 2. Auto-end allocations whose endDate passed more than GRACE_PERIOD_DAYS
 //    ago with no renewal ever having landed.
 //
-// NOTE: auto-ending only flips `status` to "ended" so the allocation stops
-// counting toward the warehouse's used capacity for future bookings — it
-// does NOT touch the customer's `products` rows or physically clear the
-// space. Warehouse staff must do that manually, which is why they (and
-// admins) get an explicit notification here rather than the system silently
-// assuming the space is empty.
+// NOTE: auto-ending flips `status` to "ended" AND `clearanceConfirmed` to
+// false. The clearanceConfirmed flag is what actually keeps this space out
+// of "available capacity" calculations for new bookings until staff
+// explicitly confirm (via POST /api/storage/[id]/confirm-clearance) that
+// the customer's products have been physically removed — flipping `status`
+// alone was not enough, since nothing here touches the customer's `products`
+// rows or the physical space itself.
 //
 // `db` is passed in rather than imported from "@/db" because the scheduled
 // handler that calls this runs outside the per-request context that
@@ -43,7 +44,10 @@ export async function runStorageExpiryCheck(db: DrizzleD1Database<typeof schema>
     if (!allocation.endDate) continue;
 
     if (allocation.endDate <= graceCutoff) {
-      await db.update(schema.storageAllocations).set({ status: "ended" }).where(eq(schema.storageAllocations.id, allocation.id));
+      await db
+        .update(schema.storageAllocations)
+        .set({ status: "ended", clearanceConfirmed: false })
+        .where(eq(schema.storageAllocations.id, allocation.id));
       allocationsEnded++;
 
       const [customer] = await db.select().from(schema.customers).where(eq(schema.customers.id, allocation.customerId));
@@ -56,16 +60,14 @@ export async function runStorageExpiryCheck(db: DrizzleD1Database<typeof schema>
         });
       }
 
-      // The system now treats this allocation's m² as available for new
-      // bookings, but the customer's actual products are still physically
-      // sitting in the warehouse — nothing here clears them. Staff must
-      // verify and clear the space before it's handed to someone else.
+      // Space stays reserved (excluded from available-capacity calculations)
+      // until staff confirm clearance — see confirm-clearance/route.ts.
       for (const member of staff) {
         await db.insert(schema.notifications).values({
           userId: member.id,
           type: "storage_auto_ended_needs_clearance",
           title: "حجز منتهي يحتاج إخلاء فعلي للمساحة",
-          message: `انتهى حجز ${customer?.companyName ?? "عميل"} (${allocation.allocatedM2} م²) تلقائيًا. المساحة أصبحت متاحة في النظام، لكن يجب التأكد من إخلاء البضاعة فعليًا من الموقع قبل إعادة تخصيصها لعميل آخر.`,
+          message: `انتهى حجز ${customer?.companyName ?? "عميل"} (${allocation.allocatedM2} م²) تلقائيًا. المساحة محجوزة في النظام لحد ما يتم تأكيد إخلاء البضاعة فعليًا من الموقع.`,
         });
       }
       continue;
