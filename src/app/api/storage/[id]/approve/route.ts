@@ -9,9 +9,21 @@ const ApproveSchema = z.object({
   reason: z.string().optional(),
 });
 
+// Same discount lookup used in POST /api/storage at booking time — kept in
+// sync here so a renewal gets the same 3/6/12-month discount a fresh
+// booking of that duration would get, instead of carrying over the old fee.
+function getDiscountPct(plan: typeof schema.pricingPlans.$inferSelect | undefined, durationMonths: number): number {
+  if (!plan) return 0;
+  if (durationMonths === 3) return plan.discountPct3m;
+  if (durationMonths === 6) return plan.discountPct6m;
+  if (durationMonths === 12) return plan.discountPct12m;
+  return 0;
+}
+
 // POST /api/storage/[id]/approve — staff-only decision on a customer-submitted
 // storage booking or renewal request. Approving a fresh booking keeps it
-// active; approving a renewal extends endDate by the requested duration.
+// active; approving a renewal extends endDate by the requested duration and
+// recalculates monthlyFee at the current pricing plan's rate for that duration.
 // Rejecting a fresh booking ends it; rejecting a renewal just clears the
 // pending request and leaves the existing allocation untouched.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -35,11 +47,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (isRenewal) {
     if (approve) {
-      const extendBySeconds = (allocation.pendingRenewalMonths ?? 1) * 30 * 24 * 60 * 60;
+      const newDurationMonths = allocation.pendingRenewalMonths ?? allocation.durationMonths;
+      const extendBySeconds = newDurationMonths * 30 * 24 * 60 * 60;
       const base = allocation.endDate && allocation.endDate > Math.floor(Date.now() / 1000) ? allocation.endDate : Math.floor(Date.now() / 1000);
+
+      const [plan] = await db.select().from(schema.pricingPlans).where(eq(schema.pricingPlans.isDefault, true)).limit(1);
+      const baseFee = Math.max(allocation.allocatedM2 * (plan?.pricePerM2 ?? 0), plan?.minMonthlyFee ?? 0);
+      const discountPct = getDiscountPct(plan, newDurationMonths);
+      const newMonthlyFee = baseFee * (1 - discountPct / 100);
+
       await db
         .update(schema.storageAllocations)
-        .set({ endDate: base + extendBySeconds, durationMonths: allocation.pendingRenewalMonths ?? allocation.durationMonths, pendingRenewalMonths: null })
+        .set({
+          endDate: base + extendBySeconds,
+          durationMonths: newDurationMonths,
+          monthlyFee: newMonthlyFee,
+          pendingRenewalMonths: null,
+        })
         .where(eq(schema.storageAllocations.id, allocationId));
     } else {
       await db
