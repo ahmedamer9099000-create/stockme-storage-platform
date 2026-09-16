@@ -74,6 +74,7 @@ export function SiteFooter() {
             <li><Link href="/about" className="hover:text-white">من نحن</Link></li>
             <li><Link href="/faq" className="hover:text-white">الأسئلة الشائعة</Link></li>
             <li><Link href="/contact" className="hover:text-white">تواصل معنا</Link></li>
+            <li><Link href="/privacy" className="hover:text-white">سياسة الخصوصية</Link></li>
             <li><a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer" className="hover:text-white">واتساب: 01146135278</a></li>
           </ul>
         </div>
