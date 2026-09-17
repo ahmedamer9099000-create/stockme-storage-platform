@@ -1,4 +1,8 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
+import { eq, isNotNull, ne, or } from "drizzle-orm";
+import { db, schema } from "@/db";
 import { SiteHeader, SiteFooter } from "@/components/site/chrome";
 import { Button, Card } from "@/components/ui";
 
@@ -23,7 +27,41 @@ const faqs = [
   { q: "إزاي أعرف مخزوني الفعلي دايمًا؟", a: "لوحة التحكم بتوريك كل منتج وكميته ومكانه لحظة بلحظة، وكل حركة دخول أو خروج بتتسجل تلقائيًا." },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Real capacity numbers across ALL warehouses, not a single hardcoded one.
+  const warehousesList = await db.select().from(schema.warehouses);
+  const totalCapacity = warehousesList.reduce((sum, w) => sum + w.totalCapacityM2, 0);
+
+  // Occupied = active allocations, OR ended allocations still awaiting physical
+  // clearance confirmation — same rule used in POST /api/storage's capacity check,
+  // so this number matches what actually blocks a new booking.
+  const occupiedAllocations = await db
+    .select()
+    .from(schema.storageAllocations)
+    .where(or(eq(schema.storageAllocations.status, "active"), ne(schema.storageAllocations.clearanceStatus, "admin_confirmed")));
+  const occupied = occupiedAllocations.reduce((sum, a) => sum + a.allocatedM2, 0);
+  const available = Math.max(totalCapacity - occupied, 0);
+
+  // Real bin locations of actual stored products — not made-up paths.
+  const realBinPaths = await db
+    .select({
+      whCode: schema.warehouses.code,
+      zoneCode: schema.zones.code,
+      rackCode: schema.racks.code,
+      shelfCode: schema.shelves.code,
+      binCode: schema.bins.code,
+    })
+    .from(schema.products)
+    .innerJoin(schema.bins, eq(schema.products.binId, schema.bins.id))
+    .innerJoin(schema.shelves, eq(schema.bins.shelfId, schema.shelves.id))
+    .innerJoin(schema.racks, eq(schema.shelves.rackId, schema.racks.id))
+    .innerJoin(schema.zones, eq(schema.racks.zoneId, schema.zones.id))
+    .innerJoin(schema.warehouses, eq(schema.zones.warehouseId, schema.warehouses.id))
+    .where(isNotNull(schema.products.binId))
+    .limit(3);
+
+  const binPaths = realBinPaths.map((r) => [r.whCode, r.zoneCode, r.rackCode, r.shelfCode, r.binCode]);
+
   return (
     <>
       <SiteHeader />
@@ -45,36 +83,41 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* signature element: a bin-path "fill up" illustration */}
             <Card className="p-6 lg:p-8 bg-surface">
-              <p className="text-xs text-muted mb-4">موقع بضاعتك داخل المخزن — دقيق لآخر صندوق</p>
-              <div className="space-y-3 font-mono text-sm" dir="ltr">
-                {[
-                  ["WH-A", "Z1", "R11", "S2", "B1"],
-                  ["WH-A", "Z1", "R12", "S1", "B2"],
-                  ["WH-A", "Z2", "R21", "S3", "B1"],
-                ].map((path, i) => (
-                  <div key={i} className="bin-path">
-                    {path.map((s, j) => (
-                      <span key={j} className="flex items-center gap-1.5">
-                        <span className="seg">{s}</span>
-                        {j < path.length - 1 && <span className="sep">/</span>}
-                      </span>
+              {binPaths.length > 0 ? (
+                <>
+                  <p className="text-xs text-muted mb-4">موقع بضاعتك داخل المخزن — دقيق لآخر صندوق</p>
+                  <div className="space-y-3 font-mono text-sm" dir="ltr">
+                    {binPaths.map((path, i) => (
+                      <div key={i} className="bin-path">
+                        {path.map((s, j) => (
+                          <span key={j} className="flex items-center gap-1.5">
+                            <span className="seg">{s}</span>
+                            {j < path.length - 1 && <span className="sep">/</span>}
+                          </span>
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted leading-relaxed">
+                  كل منتج بيتسجل بموقع دقيق داخل المخزن (المخزن/المنطقة/الرف/الرصة/الصندوق) من لحظة استلامه — تقدر تشوف ده بنفسك فور ما تبدأ تخزين بضاعتك.
+                </p>
+              )}
               <div className="mt-6 pt-6 border-t border-line grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <p className="font-display font-bold text-2xl text-brand-dark">100م²</p>
-                  <p className="text-xs text-muted mt-0.5">إجمالي المساحة</p>
+                  <p className="font-display font-bold text-2xl text-brand-dark">{totalCapacity}م²</p>
+                  <p className="text-xs text-muted mt-0.5">
+                    إجمالي المساحة{warehousesList.length > 1 ? ` (${warehousesList.length} مخازن)` : ""}
+                  </p>
                 </div>
                 <div>
-                  <p className="font-display font-bold text-2xl text-signal">67م²</p>
+                  <p className="font-display font-bold text-2xl text-signal">{occupied}م²</p>
                   <p className="text-xs text-muted mt-0.5">مستخدمة</p>
                 </div>
                 <div>
-                  <p className="font-display font-bold text-2xl text-success">33م²</p>
+                  <p className="font-display font-bold text-2xl text-success">{available}م²</p>
                   <p className="text-xs text-muted mt-0.5">متاحة</p>
                 </div>
               </div>
